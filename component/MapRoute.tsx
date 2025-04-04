@@ -31,7 +31,7 @@ export default function RouteMap({ start, end }: RouteMapProps) {
         mapRef.current = L.map('map').setView([start.lat, start.lng], 10);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors',
+          attribution: '© OpenStreetMap contributors',
         }).addTo(mapRef.current);
       }
 
@@ -39,7 +39,7 @@ export default function RouteMap({ start, end }: RouteMapProps) {
         try {
           routingControlRef.current.getPlan().setWaypoints([]);
           mapRef.current?.removeControl(routingControlRef.current);
-          routingControlRef.current = null; // Important: Reset the ref after removal
+          routingControlRef.current = null;
         } catch (err) {
           console.warn('Error removing routing control:', err);
         }
@@ -62,13 +62,19 @@ export default function RouteMap({ start, end }: RouteMapProps) {
         routeWhileDragging: false,
         lineOptions: {
           styles: [{ color: 'blue', opacity: 0.7, weight: 5 }],
+          extendToWaypoints: true,
+          missingRouteTolerance: 5,
         },
-        createMarker: () => null,
+        plan: L.Routing.plan([L.latLng(start.lat, start.lng), L.latLng(end.lat, end.lng)], {
+          createMarker: (waypointIndex: number, waypoint: L.Routing.Waypoint, numberOfWaypoints: number) => {
+            return false; // Return false to disable default markers
+          },
+        }),
         fitSelectedRoutes: true,
         show: false,
       }).addTo(mapRef.current);
 
-      routingControlRef.current = routingControl; // Assign the created control to the ref
+      routingControlRef.current = routingControl;
 
       routingControl.on('routesfound', (e: any) => {
         if (e.routes && e.routes.length > 0) {
@@ -77,7 +83,7 @@ export default function RouteMap({ start, end }: RouteMapProps) {
           currentIndexRef.current = 0;
           animationStartTimeRef.current = null;
         } else {
-          setRouteCoordinates([]); // Clear previous route if no new route is found
+          setRouteCoordinates([]);
         }
       });
 
@@ -108,7 +114,7 @@ export default function RouteMap({ start, end }: RouteMapProps) {
       const animateMarker = (timestamp: number) => {
         if (!animationStartTimeRef.current) animationStartTimeRef.current = timestamp;
         const elapsed = timestamp - animationStartTimeRef.current;
-        const actualSpeed = Math.pow(speed, 2) * 2; // Exponential speed scaling
+        const actualSpeed = Math.pow(speed, 2) * 2;
         const distance = (actualSpeed / 1000) * elapsed;
         let moved = 0;
 
