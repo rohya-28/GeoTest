@@ -39,6 +39,7 @@ export default function RouteMap({ start, end }: RouteMapProps) {
         try {
           routingControlRef.current.getPlan().setWaypoints([]);
           mapRef.current?.removeControl(routingControlRef.current);
+          routingControlRef.current = null; // Important: Reset the ref after removal
         } catch (err) {
           console.warn('Error removing routing control:', err);
         }
@@ -56,7 +57,7 @@ export default function RouteMap({ start, end }: RouteMapProps) {
 
       markerRef.current = L.marker([start.lat, start.lng], { icon: vehicleIcon }).addTo(mapRef.current);
 
-      routingControlRef.current = L.Routing.control({
+      const routingControl = L.Routing.control({
         waypoints: [L.latLng(start.lat, start.lng), L.latLng(end.lat, end.lng)],
         routeWhileDragging: false,
         lineOptions: {
@@ -67,11 +68,17 @@ export default function RouteMap({ start, end }: RouteMapProps) {
         show: false,
       }).addTo(mapRef.current);
 
-      routingControlRef.current.on('routesfound', (e: any) => {
-        const route = e.routes[0].coordinates;
-        setRouteCoordinates(route);
-        currentIndexRef.current = 0;
-        animationStartTimeRef.current = null;
+      routingControlRef.current = routingControl; // Assign the created control to the ref
+
+      routingControl.on('routesfound', (e: any) => {
+        if (e.routes && e.routes.length > 0) {
+          const route = e.routes[0].coordinates;
+          setRouteCoordinates(route);
+          currentIndexRef.current = 0;
+          animationStartTimeRef.current = null;
+        } else {
+          setRouteCoordinates([]); // Clear previous route if no new route is found
+        }
       });
 
       return () => {
@@ -80,6 +87,7 @@ export default function RouteMap({ start, end }: RouteMapProps) {
             try {
               routingControlRef.current.getPlan().setWaypoints([]);
               mapRef.current.removeControl(routingControlRef.current);
+              routingControlRef.current = null;
             } catch (err) {
               console.warn('Error during cleanup:', err);
             }
@@ -105,10 +113,10 @@ export default function RouteMap({ start, end }: RouteMapProps) {
         let moved = 0;
 
         while (moved < distance && currentIndexRef.current < routeCoordinates.length - 1) {
-          currentIndexRef.current++;
-          moved += L.latLng(routeCoordinates[currentIndexRef.current - 1]).distanceTo(
-            L.latLng(routeCoordinates[currentIndexRef.current])
+          moved += L.latLng(routeCoordinates[currentIndexRef.current]).distanceTo(
+            L.latLng(routeCoordinates[currentIndexRef.current + 1])
           );
+          currentIndexRef.current++;
         }
 
         if (currentIndexRef.current < routeCoordinates.length) {
